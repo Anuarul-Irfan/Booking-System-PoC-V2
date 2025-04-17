@@ -126,7 +126,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <p class="mb-2 opacity-75">My Active Bookings</p>
-                                <h3 class="mb-0">{{ my_bookings|selectattr('status', 'undefined')|list|length }}</h3>
+                                <h3 class="mb-0">{{ my_bookings|selectattr('status', 'in', ['booked', 'checked_in'])|list|length }}</h3>
                             </div>
                             <i class="bi bi-bookmark-check stats-icon"></i>
                         </div>
@@ -139,8 +139,7 @@
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <p class="mb-2 opacity-75">Completed Bookings</p>
-                                <h3 class="mb-0">{{ my_bookings|selectattr('status', 'equalto', 'completed')|list|length
-                                    }}</h3>
+                                <h3 class="mb-0">{{ my_bookings|selectattr('status', 'equalto', 'completed')|list|length }}</h3>
                             </div>
                             <i class="bi bi-check-circle stats-icon"></i>
                         </div>

@@ -29,6 +29,7 @@ def admin_dashboard():
 
         # Stats summary
         stats = {
+            'total_slots': len(slots),  # Total number of slots
             'awaiting_checkin': len([s for s in slots if s.get('status') == 'booked']),
             'in_terminal': len([s for s in slots if s.get('status') == 'checked_in']),
             'completed': len([s for s in slots if s.get('status') == 'completed'])
@@ -43,7 +44,11 @@ def admin_dashboard():
                                attendance_records=attendance_records)
     except Exception as e:
         flash(f"Error loading dashboard: {str(e)}", 'error')
-        return render_template("admin_dashboard.html", slots=[], available_times=[], stats={}, attendance_records=[])
+        return render_template("admin_dashboard.html", 
+                               slots=[], 
+                               available_times=[], 
+                               stats={'total_slots': 0, 'awaiting_checkin': 0, 'in_terminal': 0, 'completed': 0}, 
+                               attendance_records=[])
 
 @admin_bp.route("/add_slot", methods=["POST"])
 @admin_required
@@ -62,13 +67,16 @@ def add_slot():
             flash('This time slot already exists.', 'error')
             return redirect(url_for('admin.admin_dashboard'))
 
-        db.collection('slots').add({
+        # Create new slot with explicit 'available' status
+        slot_data = {
             'time': time,
             'product': product,
             'bookedBy': None,
-            'status': 'available',
+            'status': 'available',  # Explicitly set status as 'available'
             'created_at': datetime.utcnow()
-        })
+        }
+        
+        db.collection('slots').add(slot_data)
         flash('Slot added successfully.', 'success')
     except Exception as e:
         print("Error adding slot:", str(e))

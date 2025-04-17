@@ -37,18 +37,18 @@ except Exception as e:
 # Function to fetch all booked slots (those with 'bookedBy' not None)
 def get_all_booked_slots():
     try:
-        # Modified query to use only one NOT_EQUAL filter
+        # Get all booked slots
         booked_slots = [
             doc.to_dict() | {'id': doc.id} 
             for doc in db.collection('slots')
-            .where('bookedBy', '!=', None)  # Only this NOT_EQUAL filter
+            .where('bookedBy', '!=', None)
             .stream()
         ]
         
-        # Filter the remaining conditions in Python
+        # Filter out completed slots
         filtered_slots = [
             slot for slot in booked_slots
-            if slot.get('status') != 'checked_in'  # Filter out checked-in slots
+            if slot.get('status') != 'completed'
         ]
         
         return filtered_slots
@@ -120,7 +120,25 @@ def create_attendance(slot_id, plate):
 # Function to get all active check-ins (status "in_terminal")
 def get_active_attendance():
     try:
-        return [doc.to_dict() | {"id": doc.id} for doc in db.collection("attendance").where("status", "==", "in_terminal").stream()]
+        attendance_records = [
+            doc.to_dict() | {"id": doc.id} 
+            for doc in db.collection("attendance")
+            .where("status", "==", "in_terminal")
+            .stream()
+        ]
+        
+        # Add slot information to each attendance record
+        for record in attendance_records:
+            slot_id = record.get('slotId')
+            if slot_id:
+                slot_doc = db.collection('slots').document(slot_id).get()
+                if slot_doc.exists:
+                    slot_data = slot_doc.to_dict()
+                    record['bookedBy'] = slot_data.get('bookedBy')
+                    record['time'] = slot_data.get('time')
+                    record['product'] = slot_data.get('product')
+        
+        return attendance_records
     except Exception as e:
         raise Exception(f"Error fetching active attendance: {e}")
 
@@ -217,11 +235,38 @@ def book_slot(slot_id, user_id):
 # Function to get user bookings by user ID
 def get_user_bookings(user_id):
     try:
-        # Get all slots booked by this user
-        slots = [doc.to_dict() | {'id': doc.id} 
-                for doc in db.collection('slots').where('bookedBy', '==', user_id).stream()]
+        # Get all slots booked by this user (including current and completed bookings)
+        slots = [
+            doc.to_dict() | {'id': doc.id} 
+            for doc in db.collection('slots')
+            .where('bookedBy', '==', user_id)
+            .stream()
+        ]
+        
+        # Get attendance records for all bookings
+        attendance_records = {
+            doc.get('slotId'): doc.to_dict()
+            for doc in db.collection('attendance')
+            .where('bookedBy', '==', user_id)
+            .stream()
+        }
+        
+        # Merge attendance data with slot data
+        for slot in slots:
+            if slot['id'] in attendance_records:
+                attendance = attendance_records[slot['id']]
+                slot['timeIn'] = attendance.get('timeIn')
+                slot['timeOut'] = attendance.get('timeOut')
+                slot['truckPlate'] = attendance.get('truckPlate')
+                # Ensure the status is consistent
+                if attendance.get('status') == 'in_terminal':
+                    slot['status'] = 'checked_in'
+                elif attendance.get('status') == 'completed':
+                    slot['status'] = 'completed'
+        
         return slots
     except Exception as e:
+        print(f"Error getting user bookings: {str(e)}")
         raise Exception(f"Error getting user bookings: {str(e)}")
 
 # Function to get all attendance records
