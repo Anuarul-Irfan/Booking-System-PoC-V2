@@ -1,5 +1,5 @@
 # slots.py
-from flask import Blueprint, render_template, redirect, url_for, session, flash
+from flask import Blueprint, render_template, redirect, url_for, session, flash, request
 from auth import login_required
 from firebase_config import get_all_slots, book_slot, get_user_bookings
 
@@ -32,7 +32,13 @@ def haulier_dashboard():
 def book_slot_route(slot_id):
     try:
         user_id = session["user"]["uid"]
-        book_slot(slot_id, user_id)
+        plate = request.form.get("plate")
+        
+        if not plate:
+            flash("Vehicle plate number is required", "error")
+            return redirect(url_for("slots.haulier_dashboard"))
+            
+        book_slot(slot_id, user_id, plate)
         flash("Slot booked successfully", "success")
     except Exception as e:
         flash(f"Error booking slot: {str(e)}", "error")

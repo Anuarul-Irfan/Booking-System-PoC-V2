@@ -189,14 +189,11 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <form action="{{ url_for('slots.book_slot_route', slot_id=slot.id) }}" method="POST"
-                                        class="d-inline">
-                                        <button type="submit" class="btn btn-primary btn-sm"
-                                            onclick="return confirm('Confirm booking this slot?')">
-                                            <i class="bi bi-calendar-check me-1"></i>
-                                            Book Now
-                                        </button>
-                                    </form>
+                                    <button type="button" class="btn btn-primary btn-sm"
+                                        data-bs-toggle="modal" data-bs-target="#bookingModal{{ slot.id }}">
+                                        <i class="bi bi-calendar-check me-1"></i>
+                                        Book Now
+                                    </button>
                                 </td>
                             </tr>
                             {% else %}
@@ -212,6 +209,50 @@
                 </div>
             </div>
         </div>
+
+        <!-- Booking Modals -->
+        {% for slot in available_slots %}
+        <div class="modal fade" id="bookingModal{{ slot.id }}" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-truck me-2"></i>
+                            Book Slot
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="{{ url_for('slots.book_slot_route', slot_id=slot.id) }}" method="POST">
+                        <div class="modal-body p-4">
+                            <div class="mb-4">
+                                <label class="form-label">Time Slot</label>
+                                <input type="text" class="form-control" value="{{ slot.time }}" readonly>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">Product Type</label>
+                                <input type="text" class="form-control" value="{{ slot.product }}" readonly>
+                            </div>
+                            <div class="mb-4">
+                                <label class="form-label">Vehicle Plate Number</label>
+                                <input type="text" name="plate" class="form-control" required
+                                       placeholder="Enter vehicle plate number" autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle me-1"></i>
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>
+                                Confirm Booking
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
 
         <!-- My Bookings -->
         <div class="card">
