@@ -103,7 +103,7 @@ def create_attendance(slot_id, plate):
         # Add attendance record
         attendance_ref = db.collection('attendance').add(attendance_data)
         
-        # Update the slot status
+        # Update the slot status and truck plate
         slot_ref.update({
             'status': 'checked_in',
             'truckPlate': plate,
@@ -163,7 +163,7 @@ def mark_as_exited(slot_id):
                 'status': 'completed'
             })
         
-        # Update the slot status
+        # Clear the slot's vehicle information
         slot_ref.update({
             'status': 'completed',
             'truckPlate': None,
@@ -180,10 +180,35 @@ def mark_as_exited(slot_id):
 # Function to get all slots (for general use)
 def get_all_slots():
     try:
-        return [doc.to_dict() | {'id': doc.id} for doc in db.collection('slots').stream()]
-    except Exception as e:
-        raise Exception(f"Error fetching all slots: {str(e)}")
+        # Get all slots
+        slots = [doc.to_dict() | {'id': doc.id} for doc in db.collection('slots').stream()]
         
+        # Get all attendance records
+        attendance_records = {
+            doc.get('slotId'): doc.to_dict()
+            for doc in db.collection('attendance').stream()
+        }
+        
+        # Merge attendance data with slot data
+        for slot in slots:
+            if slot['id'] in attendance_records:
+                attendance = attendance_records[slot['id']]
+                slot['timeIn'] = attendance.get('timeIn')
+                slot['timeOut'] = attendance.get('timeOut')
+                slot['truckPlate'] = attendance.get('truckPlate')
+                # Ensure the status is consistent
+                if attendance.get('status') == 'in_terminal':
+                    slot['status'] = 'checked_in'
+                elif attendance.get('status') == 'completed':
+                    slot['status'] = 'completed'
+            elif not slot.get('status'):
+                slot['status'] = 'available'
+                
+        return slots
+    except Exception as e:
+        print(f"Error fetching all slots: {str(e)}")
+        raise Exception(f"Error fetching all slots: {str(e)}")
+
 # Function to create a slot
 def create_slot(time, product):
     try:
@@ -263,6 +288,8 @@ def get_user_bookings(user_id):
                     slot['status'] = 'checked_in'
                 elif attendance.get('status') == 'completed':
                     slot['status'] = 'completed'
+            elif not slot.get('status'):
+                slot['status'] = 'booked'
         
         return slots
     except Exception as e:
@@ -272,13 +299,35 @@ def get_user_bookings(user_id):
 # Function to get all attendance records
 def get_all_attendance():
     try:
-        attendance = [
+        # Get all attendance records ordered by check-in time
+        attendance_records = [
             doc.to_dict() | {'id': doc.id} 
             for doc in db.collection('attendance')
             .order_by('timeIn', direction=firestore.Query.DESCENDING)
             .stream()
         ]
-        return attendance
+        
+        # Get all slots for reference
+        slots = {
+            doc.id: doc.to_dict()
+            for doc in db.collection('slots').stream()
+        }
+        
+        # Merge slot data with attendance records
+        for record in attendance_records:
+            slot_id = record.get('slotId')
+            if slot_id and slot_id in slots:
+                slot_data = slots[slot_id]
+                record['time'] = slot_data.get('time')
+                record['product'] = slot_data.get('product')
+                record['bookedBy'] = slot_data.get('bookedBy')
+                # Ensure vehicle plate is consistent
+                if record.get('status') == 'completed':
+                    slot_data['truckPlate'] = None
+                else:
+                    slot_data['truckPlate'] = record.get('truckPlate')
+        
+        return attendance_records
     except Exception as e:
         print(f"Error fetching attendance: {str(e)}")
         raise

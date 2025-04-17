@@ -3,6 +3,10 @@ from functools import wraps
 from flask import session, redirect, url_for, flash
 from firebase_admin import auth, firestore
 from functools import wraps
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Define the admin_required decorator
 def admin_required(f):
@@ -38,7 +42,7 @@ def login():
         password = request.form["password"]
         
         # Firebase Web API Key
-        api_key = "AIzaSyBzDMMan-eweeVzEcq04ooMExxI3741Pfc"
+        api_key = os.getenv("FIREBASE_API_KEY")
         
         try:
             auth_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={api_key}"
